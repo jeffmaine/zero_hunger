@@ -11,11 +11,17 @@ git push -u origin main
 
 Create the empty repo on GitHub first (no README), then run the commands above.
 
-## 2. Run on a server (Docker)
+## 2. AWS EC2 (recommended)
 
-1. Clone the repo on your VPS (DigitalOcean, AWS EC2, etc.).
-2. Copy env: `cp backend/.env.example backend/.env` and fill secrets.
-3. Put Firebase service account at `backend/secrets/` (gitignored).
+**Full walkthrough:** [deploy/aws-ec2.md](deploy/aws-ec2.md)
+
+Quick version: Ubuntu EC2 → install Docker → clone repo → `backend/.env` → `docker compose up -d --build` → open port **8000** in security group.
+
+## 3. Any server (Docker)
+
+1. Clone the repo.
+2. `cp backend/.env.example backend/.env` — set `DB_PASSWORD` and `POSTGRES_PASSWORD` to the **same** value.
+3. Put Firebase JSON in `backend/secrets/` (mounted at `/app/secrets` in the API container).
 4. Start:
 
 ```bash
@@ -23,10 +29,10 @@ docker compose up -d --build
 docker compose exec api alembic upgrade head
 ```
 
-5. Point your domain or IP to port `8000` (use nginx/Caddy for HTTPS in production).
-6. Update mobile `API_BASE` / ngrok URL to your public API URL.
+5. Point mobile `API_BASE` to `http://YOUR_SERVER_IP:8000/api/v1`.
+6. Add HTTPS before production users (nginx/Caddy or AWS ALB).
 
-## 3. Mobile builds
+## 4. Mobile builds
 
 - Android: `flutter build apk --release`
 - iOS: Xcode archive (needs Apple dev account)
