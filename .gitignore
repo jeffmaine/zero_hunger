@@ -1,0 +1,32 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/.env
+backend/secrets/
+backend/*.db
+backend/zerohunger_test.db
+*.pyc
+.pytest_cache/
+
+# Firebase / FCM (never commit keys)
+**/google-services.json
+**/GoogleService-Info.plist
+**/*firebase*adminsdk*.json
+**/firebase-service-account*.json
+
+# Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins-dependencies
+mobile/.idea/
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/google-services.json
+
+# OS
+.DS_Store
+
+# IDE
+*.iml

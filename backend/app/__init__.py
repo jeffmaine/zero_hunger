@@ -1,0 +1,1 @@
+"""Zero Hunger FastAPI application."""
