@@ -30,7 +30,8 @@ bool get usesNgrok => apiBaseUrl.contains('ngrok');
 /// Paste your Google **Web application** OAuth client ID for local runs (optional).
 /// Same value as `GOOGLE_CLIENT_ID` in backend `.env`. Or pass via dart-define (overrides this).
 /// Google Cloud → APIs & Services → Credentials → OAuth 2.0 → Web client
-const String kGoogleWebClientIdFallback = '';
+const String kGoogleWebClientIdFallback =
+    '246715783011-jg0v1aorjnt2ggf3sfjflfp5gtuv9a92.apps.googleusercontent.com';
 
 /// Web client ID — required on Android for `idToken`. See `mobile/GOOGLE_SIGNIN.md`.
 String get googleWebClientId {

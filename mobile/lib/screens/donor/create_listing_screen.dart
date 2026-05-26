@@ -10,6 +10,8 @@ import '../../providers/geo_provider.dart';
 import '../../providers/donor_dashboard_provider.dart';
 import '../../providers/listings_provider.dart';
 import '../../services/listing_service.dart';
+import '../../utils/pickup_deadline_utils.dart';
+import '../../widgets/pickup_deadline_picker.dart';
 import '../../widgets/primary_button.dart';
 
 class CreateListingScreen extends ConsumerStatefulWidget {
@@ -24,7 +26,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   final _description = TextEditingController();
   final _quantity = TextEditingController(text: '10 portions');
   String _category = 'cooked_meal';
-  DateTime _deadline = DateTime.now().add(const Duration(hours: 6));
+  DateTime _deadline = deadlineFromNow(const Duration(hours: 6));
   String? _imageUrl;
   bool _submitting = false;
 
@@ -47,23 +49,13 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
     }
   }
 
-  Future<void> _pickDeadline() async {
-    final date = await showDatePicker(
-      context: context,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 7)),
-      initialDate: _deadline,
-    );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_deadline));
-    if (time == null) return;
-    setState(() {
-      _deadline = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    });
-  }
-
   Future<void> _submit() async {
     if (!_canSubmit) return;
+    final deadlineError = validatePickupDeadline(_deadline);
+    if (deadlineError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(deadlineError)));
+      return;
+    }
     final geo = ref.read(geoProvider);
     setState(() => _submitting = true);
     try {
@@ -165,13 +157,10 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
               maxLines: 3,
               decoration: const InputDecoration(labelText: 'Any details? (optional)'),
             ),
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Available until'),
-              subtitle: Text(_deadline.toLocal().toString()),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _pickDeadline,
+            const SizedBox(height: 16),
+            PickupDeadlinePicker(
+              deadline: _deadline,
+              onChanged: (d) => setState(() => _deadline = d),
             ),
             const SizedBox(height: 24),
             PrimaryButton(

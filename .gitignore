@@ -2,6 +2,7 @@
 backend/.venv/
 backend/__pycache__/
 backend/.env
+backend/client_secret*.json
 backend/secrets/
 backend/*.db
 backend/zerohunger_test.db

@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/geo_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/token_storage.dart';
+import '../../utils/auth_navigation.dart';
 import '../../widgets/google_sign_in_button.dart';
 import '../../widgets/primary_button.dart';
 import 'widgets/auth_shell.dart';
@@ -64,15 +65,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return score.clamp(0, 3);
   }
 
+  Future<void> _persistRole(UserRole role) {
+    return ref.read(tokenStorageProvider).setPendingRole(role.apiValue);
+  }
+
   Future<void> _googleSignIn() async {
     setState(() => _error = null);
+    if (blockVolunteerSignup(context, _role)) return;
     try {
       final user = await ref.read(authProvider.notifier).signInWithGoogle(
             role: _role,
             phone: _phone.text.trim().length >= 10 ? _phone.text.trim() : '',
           );
       if (!mounted || user == null) return;
-      context.go(user.role == UserRole.donor ? '/donor' : '/receiver');
+      goAfterAuth(context, user);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -83,6 +89,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _error = null);
+    if (blockVolunteerSignup(context, _role)) return;
     final geo = ref.read(geoProvider);
 
     try {
@@ -96,7 +103,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             longitude: geo.longitude,
           );
       if (!mounted || user == null) return;
-      context.go(user.role == UserRole.donor ? '/donor' : '/receiver');
+      goAfterAuth(context, user);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -130,7 +137,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ],
             RoleSelector(
               selected: _role,
-              onChanged: (r) => setState(() => _role = r),
+              onChanged: (r) {
+                setState(() => _role = r);
+                _persistRole(r);
+              },
             ),
             const SizedBox(height: 12),
             AuthTextField(

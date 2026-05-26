@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../models/enums.dart';
 import '../../services/token_storage.dart';
+import '../../utils/auth_navigation.dart';
 import '../../widgets/primary_button.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
@@ -36,7 +37,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (_selectedRole == null) return;
     if (_selectedRole == UserRole.volunteer) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Volunteer deliveries coming in Phase 2. Choose Donor or Receiver.')),
+        const SnackBar(content: Text(kVolunteerPhase2Message)),
       );
       return;
     }

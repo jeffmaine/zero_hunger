@@ -30,20 +30,19 @@ class DonorListingDetailScreen extends ConsumerStatefulWidget {
 class _DonorListingDetailScreenState extends ConsumerState<DonorListingDetailScreen> {
   String? _actionClaimId;
 
-  Future<void> _refresh() async {
+  void _refresh() {
     ref.invalidate(listingDetailProvider(widget.listingId));
     ref.invalidate(listingClaimsProvider(widget.listingId));
     ref.invalidate(myListingsProvider);
     ref.invalidate(unreadNotificationsProvider);
     ref.invalidate(donorDashboardProvider);
-    await ref.read(listingDetailProvider(widget.listingId).future);
   }
 
   Future<void> _approve(String claimId) async {
     setState(() => _actionClaimId = claimId);
     try {
       await ref.read(claimServiceProvider).approveClaim(claimId);
-      await _refresh();
+      _refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Claim approved')),
@@ -77,7 +76,7 @@ class _DonorListingDetailScreenState extends ConsumerState<DonorListingDetailScr
     setState(() => _actionClaimId = claimId);
     try {
       await ref.read(claimServiceProvider).rejectClaim(claimId);
-      await _refresh();
+      _refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Claim rejected')),
@@ -96,7 +95,7 @@ class _DonorListingDetailScreenState extends ConsumerState<DonorListingDetailScr
     setState(() => _actionClaimId = '_status');
     try {
       await ref.read(listingServiceProvider).patchStatus(widget.listingId, status);
-      await _refresh();
+      _refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Status: ${status.name}')));
         if (status == ListingStatus.cancelled) Navigator.pop(context);
@@ -117,7 +116,7 @@ class _DonorListingDetailScreenState extends ConsumerState<DonorListingDetailScr
       await ref.read(listingServiceProvider).update(widget.listingId, {
         'pickup_deadline': newDeadline.toUtc().toIso8601String(),
       });
-      await _refresh();
+      _refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Deadline extended by 2 hours')));
       }
@@ -178,7 +177,7 @@ class _DonorListingDetailScreenState extends ConsumerState<DonorListingDetailScr
     setState(() => _actionClaimId = claim.id);
     try {
       await ref.read(claimServiceProvider).markNoShow(claim.id);
-      await _refresh();
+      _refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Marked no-show — listing available again')),
@@ -237,12 +236,12 @@ class _DonorListingDetailScreenState extends ConsumerState<DonorListingDetailScr
     setState(() => _actionClaimId = approved.id);
     try {
       await ref.read(claimServiceProvider).collectClaim(approved.id, code);
-      await _refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Pickup confirmed — listing completed')),
         );
         Navigator.pop(context);
+        _refresh();
       }
     } catch (e) {
       if (mounted) {
@@ -259,6 +258,7 @@ class _DonorListingDetailScreenState extends ConsumerState<DonorListingDetailScr
     final claimsAsync = ref.watch(listingClaimsProvider(widget.listingId));
 
     return listingAsync.when(
+      skipLoadingOnReload: true,
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator(color: green500)),
       ),
@@ -268,6 +268,7 @@ class _DonorListingDetailScreenState extends ConsumerState<DonorListingDetailScr
       ),
       data: (listing) {
         final claims = claimsAsync.valueOrNull ?? [];
+        final claimsLoading = claimsAsync.isLoading && !claimsAsync.hasValue;
         final pending = claims.where((c) => c.status == ClaimStatus.pending).toList();
         final approved = claims.where((c) => c.status == ClaimStatus.approved).toList();
         final approvedClaim = approved.isNotEmpty ? approved.first : null;
@@ -315,7 +316,7 @@ class _DonorListingDetailScreenState extends ConsumerState<DonorListingDetailScr
           ),
           body: RefreshIndicator(
             color: green500,
-            onRefresh: _refresh,
+            onRefresh: () async => _refresh(),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
@@ -383,33 +384,31 @@ class _DonorListingDetailScreenState extends ConsumerState<DonorListingDetailScr
                   ),
                 ],
                 const SizedBox(height: 8),
-                claimsAsync.when(
-                  loading: () => const Padding(
+                if (claimsLoading)
+                  const Padding(
                     padding: EdgeInsets.symmetric(vertical: 24),
                     child: Center(child: CircularProgressIndicator(color: green500)),
+                  )
+                else if (claimsAsync.hasError && !claimsAsync.hasValue)
+                  Text('${claimsAsync.error}', style: const TextStyle(color: kErrorText))
+                else if (claims.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      'No claims yet. Receivers nearby can claim this listing.',
+                      style: TextStyle(color: kTextSecondary, fontSize: 13),
+                    ),
+                  )
+                else
+                  Column(
+                    children: claims.map((c) => _ClaimCard(
+                      claim: c,
+                      busy: _actionClaimId == c.id,
+                      onApprove: c.status == ClaimStatus.pending ? () => _approve(c.id) : null,
+                      onReject: c.status == ClaimStatus.pending ? () => _reject(c.id) : null,
+                      onNoShow: c.status == ClaimStatus.approved ? () => _markNoShow(c) : null,
+                    )).toList(),
                   ),
-                  error: (e, _) => Text('$e', style: const TextStyle(color: kErrorText)),
-                  data: (_) {
-                    if (claims.isEmpty) {
-                      return const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'No claims yet. Receivers nearby can claim this listing.',
-                          style: TextStyle(color: kTextSecondary, fontSize: 13),
-                        ),
-                      );
-                    }
-                    return Column(
-                      children: claims.map((c) => _ClaimCard(
-                        claim: c,
-                        busy: _actionClaimId == c.id,
-                        onApprove: c.status == ClaimStatus.pending ? () => _approve(c.id) : null,
-                        onReject: c.status == ClaimStatus.pending ? () => _reject(c.id) : null,
-                        onNoShow: c.status == ClaimStatus.approved ? () => _markNoShow(c) : null,
-                      )).toList(),
-                    );
-                  },
-                ),
                 if (pending.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -545,13 +544,7 @@ class _ClaimCard extends StatelessWidget {
                   child: FilledButton(
                     style: FilledButton.styleFrom(backgroundColor: green500),
                     onPressed: busy ? null : onApprove,
-                    child: busy
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Text('Approve'),
+                    child: Text(busy ? 'Approving…' : 'Approve'),
                   ),
                 ),
               ],

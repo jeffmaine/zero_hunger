@@ -160,7 +160,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _googleAuth.signOutGoogle();
     await _auth.logout();
-    state = state.copyWith(clearUser: true);
+    state = const AuthState(isBootstrapping: false);
   }
 
   void setUser(UserModel user) {

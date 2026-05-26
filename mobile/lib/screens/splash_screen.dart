@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/theme.dart';
-import '../models/enums.dart';
 import '../providers/auth_provider.dart';
 import '../services/token_storage.dart';
+import '../utils/auth_navigation.dart';
 import '../widgets/brand_logo.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -36,8 +36,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
     _navigated = true;
     if (auth.isAuthenticated && auth.user != null) {
-      final role = auth.user!.role;
-      context.go(role == UserRole.donor ? '/donor' : '/receiver');
+      goAfterAuth(context, auth.user!);
       return;
     }
     ref.read(tokenStorageProvider).hasOnboarded().then((onboarded) {

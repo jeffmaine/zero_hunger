@@ -11,6 +11,8 @@ import '../../models/listing.dart';
 import '../../providers/donor_dashboard_provider.dart';
 import '../../providers/listings_provider.dart';
 import '../../services/listing_service.dart';
+import '../../utils/pickup_deadline_utils.dart';
+import '../../widgets/pickup_deadline_picker.dart';
 import '../../widgets/primary_button.dart';
 
 class EditListingScreen extends ConsumerStatefulWidget {
@@ -57,22 +59,12 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
     }
   }
 
-  Future<void> _pickDeadline() async {
-    final date = await showDatePicker(
-      context: context,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 7)),
-      initialDate: _deadline,
-    );
-    if (date == null || !mounted) return;
-    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_deadline));
-    if (time == null) return;
-    setState(() {
-      _deadline = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-    });
-  }
-
   Future<void> _save() async {
+    final deadlineError = validatePickupDeadline(_deadline);
+    if (deadlineError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(deadlineError)));
+      return;
+    }
     setState(() => _submitting = true);
     try {
       await ref.read(listingServiceProvider).update(widget.listing.id, {
@@ -149,13 +141,10 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
             TextField(controller: _quantity, decoration: const InputDecoration(labelText: 'Quantity')),
             const SizedBox(height: 12),
             TextField(controller: _description, maxLines: 3, decoration: const InputDecoration(labelText: 'Details')),
-            const SizedBox(height: 12),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Pickup deadline'),
-              subtitle: Text(_deadline.toString()),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _pickDeadline,
+            const SizedBox(height: 16),
+            PickupDeadlinePicker(
+              deadline: _deadline,
+              onChanged: (d) => setState(() => _deadline = d),
             ),
             const SizedBox(height: 24),
             PrimaryButton(label: 'Save changes', isLoading: _submitting, onPressed: _save),

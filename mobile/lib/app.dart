@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router.dart';
 import 'core/theme.dart';
 import 'providers/auth_provider.dart';
+import 'providers/session_providers.dart';
 import 'services/fcm_service.dart';
 
 class ZeroHungerApp extends ConsumerStatefulWidget {
@@ -31,6 +32,10 @@ class _ZeroHungerAppState extends ConsumerState<ZeroHungerApp> {
       }
       if (!next.isAuthenticated && (prev?.isAuthenticated ?? false)) {
         fcm.clearToken();
+        invalidateSessionProviders(ref);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(routerProvider).go('/login');
+        });
       }
     });
 

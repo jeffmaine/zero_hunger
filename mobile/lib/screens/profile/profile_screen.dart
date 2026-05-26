@@ -8,10 +8,12 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/enums.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/session_providers.dart';
 import '../../providers/geo_provider.dart';
 import '../../providers/listings_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../utils/format.dart';
+import '../../utils/pickup_area_copy.dart';
 import '../../widgets/location_picker_sheet.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -19,8 +21,13 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider);
+    if (!auth.isAuthenticated) {
+      return const SizedBox.shrink();
+    }
+
     final profileAsync = ref.watch(profileProvider);
-    final user = profileAsync.valueOrNull ?? ref.watch(authProvider).user;
+    final user = profileAsync.valueOrNull ?? auth.user;
     if (user == null) {
       return const Scaffold(
         backgroundColor: kBackground,
@@ -36,7 +43,7 @@ class ProfileScreen extends ConsumerWidget {
         .map(formatFirstName)
         .join(' ');
 
-    if (profileAsync.hasError && profileAsync.valueOrNull == null) {
+    if (profileAsync.hasError && profileAsync.valueOrNull == null && auth.isAuthenticated) {
       return Scaffold(
         backgroundColor: kBackground,
         appBar: AppBar(title: const Text('Profile')),
@@ -157,7 +164,9 @@ class ProfileScreen extends ConsumerWidget {
                 _SettingsTile(
                   icon: Icons.place_outlined,
                   title: isDonor ? 'Pickup area' : 'Preferred area',
-                  subtitle: geo.label ?? user.locationLabel ?? 'Set location',
+                  subtitle: geo.hasCoords
+                      ? '${geo.displayTitle} · ${geo.sourceBadge}'
+                      : 'Where you pick up food — tap to set',
                   onTap: () => showLocationPickerSheet(context, ref),
                 ),
                 if (user.role == UserRole.receiver)
@@ -193,6 +202,7 @@ class ProfileScreen extends ConsumerWidget {
               title: const Text('Log out', style: TextStyle(color: kErrorText)),
               onTap: () async {
                 await ref.read(authProvider.notifier).logout();
+                invalidateSessionProviders(ref);
                 if (context.mounted) context.go('/login');
               },
             ),

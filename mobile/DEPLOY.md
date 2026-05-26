@@ -28,8 +28,7 @@ Override at build time if IP changes:
 
 ```bash
 flutter build appbundle --release \
-  --dart-define=API_BASE=http://3.251.66.229:8000/api/v1 \
-  --dart-define=GOOGLE_SERVER_CLIENT_ID=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
+  --dart-define=API_BASE=http://3.251.66.229:8000/api/v1
 ```
 
 **Play Store / Data safety:** Google prefers **HTTPS** for production. Plan a domain + TLS (e.g. `https://api.yourdomain.com/api/v1`) and rebuild before public launch.

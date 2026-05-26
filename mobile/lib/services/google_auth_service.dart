@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -25,6 +26,26 @@ class GoogleAuthService {
         scopes: const ['email', 'profile'],
         serverClientId: isGoogleSignInConfigured ? googleWebClientId : null,
       );
+
+  static const _androidPackage = 'com.zerohunger.zero_hunger';
+
+  static String get _androidOAuthHelp =>
+      'Google Sign-In is not linked to this Android app (error 10).\n\n'
+      'In Google Cloud Console → Credentials:\n'
+      '1. Create OAuth client → Android\n'
+      '2. Package name: $_androidPackage\n'
+      '3. SHA-1 from your debug keystore (run mobile/scripts/print_android_sha1.sh)\n'
+      '4. Save, wait 1–2 minutes, then try again\n\n'
+      'You still need the Web client ID on the API and in the app — see GOOGLE_SIGNIN.md';
+
+  static bool _isAndroidDeveloperError(Object e) {
+    final text = e.toString();
+    return text.contains('ApiException: 10') ||
+        text.contains('ApiException:10') ||
+        (e is PlatformException &&
+            e.code == 'sign_in_failed' &&
+            (text.contains(': 10') || text.contains('10:')));
+  }
 
   void _ensureClientConfigured() {
     if (!isGoogleSignInConfigured) {
@@ -97,6 +118,16 @@ class GoogleAuthService {
         );
       }
       throw ApiException(_api.parseError(e));
+    } on PlatformException catch (e) {
+      if (_isAndroidDeveloperError(e)) {
+        throw ApiException(_androidOAuthHelp);
+      }
+      throw ApiException('Google sign-in failed: ${e.message ?? e.code}');
+    } catch (e) {
+      if (_isAndroidDeveloperError(e)) {
+        throw ApiException(_androidOAuthHelp);
+      }
+      throw ApiException('Google sign-in failed: $e');
     }
   }
 

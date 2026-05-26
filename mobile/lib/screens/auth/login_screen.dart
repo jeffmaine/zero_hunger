@@ -7,9 +7,11 @@ import '../../models/enums.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import '../../services/token_storage.dart';
+import '../../utils/auth_navigation.dart';
 import '../../widgets/google_sign_in_button.dart';
 import '../../widgets/primary_button.dart';
 import 'widgets/auth_shell.dart';
+import 'widgets/role_selector.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -48,10 +50,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _googleSignIn() async {
     setState(() => _error = null);
+    if (blockVolunteerSignup(context, _role)) return;
     try {
       final user = await ref.read(authProvider.notifier).signInWithGoogle(role: _role);
       if (!mounted || user == null) return;
-      context.go(user.role == UserRole.donor ? '/donor' : '/receiver');
+      goAfterAuth(context, user);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -65,7 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final user = await ref.read(authProvider.notifier).login(_email.text.trim(), _password.text);
       if (!mounted || user == null) return;
-      context.go(user.role == UserRole.donor ? '/donor' : '/receiver');
+      goAfterAuth(context, user);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -95,6 +98,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               AuthErrorBanner(message: displayError),
               const SizedBox(height: 16),
             ],
+            RoleSelector(
+              selected: _role,
+              onChanged: (r) {
+                setState(() => _role = r);
+                ref.read(tokenStorageProvider).setPendingRole(r.apiValue);
+              },
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'New with Google? Pick your role above before continuing.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: kTextSecondary),
+            ),
+            const SizedBox(height: 16),
             AuthTextField(
               controller: _email,
               label: 'Email',

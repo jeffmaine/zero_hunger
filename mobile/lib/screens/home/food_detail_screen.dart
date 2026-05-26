@@ -4,13 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../providers/claims_provider.dart';
+import '../../providers/geo_provider.dart';
 import '../../providers/listings_provider.dart';
 import '../../providers/notifications_provider.dart';
 import '../../services/claim_service.dart';
+import '../../models/claim.dart';
+import '../../models/enums.dart';
+import '../../utils/claim_ui.dart';
 import '../../utils/format.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/claim_limits_banner.dart';
+import '../../widgets/location_picker_sheet.dart';
+import '../../widgets/pickup_area_banner.dart';
 import '../../widgets/primary_button.dart';
+import '../../utils/pickup_area_copy.dart';
 import '../../widgets/status_badge.dart';
 
 class FoodDetailScreen extends ConsumerStatefulWidget {
@@ -24,49 +31,113 @@ class FoodDetailScreen extends ConsumerStatefulWidget {
 
 class _FoodDetailScreenState extends ConsumerState<FoodDetailScreen> {
   bool _claiming = false;
+  ClaimStatus? _justSubmittedStatus;
 
   Future<void> _claim() async {
+    var geo = ref.read(geoProvider);
+    if (!geo.hasCoords) {
+      await showLocationPickerSheet(context, ref);
+      geo = ref.read(geoProvider);
+      if (!geo.hasCoords) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Set your pickup area first — where you can collect food.'),
+            ),
+          );
+        }
+        return;
+      }
+    }
+    if (!mounted) return;
+
     final confirm = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: kSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Claim this food?', style: Theme.of(ctx).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            const Text(
-              'The donor reviews your request — not fastest-finger wins. '
-              'You can have up to 2 active claims at a time.',
-              style: TextStyle(color: kTextSecondary),
-            ),
-            const SizedBox(height: 24),
-            PrimaryButton(
-              label: 'Yes, claim',
-              onPressed: () => Navigator.pop(ctx, true),
-            ),
-            const SizedBox(height: 8),
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ],
-        ),
-      ),
+      builder: (ctx) {
+        final area = ref.read(geoProvider);
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Claim this food?', style: Theme.of(ctx).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              const Text(
+                'The donor reviews your request — not fastest-finger wins. '
+                'You can have up to 2 active claims at a time.',
+                style: TextStyle(color: kTextSecondary),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: green50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: green100),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.place_outlined, color: green500, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Your pickup area: ${area.displayTitle}',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            area.displaySubtitle,
+                            style: const TextStyle(fontSize: 12, color: kTextSecondary, height: 1.3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await showLocationPickerSheet(context, ref);
+                  },
+                  child: const Text('Change pickup area'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              PrimaryButton(
+                label: 'Yes, claim',
+                onPressed: () => Navigator.pop(ctx, true),
+              ),
+              const SizedBox(height: 8),
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ],
+          ),
+        );
+      },
     );
     if (confirm != true || !mounted) return;
     setState(() => _claiming = true);
     try {
       await ref.read(claimServiceProvider).createClaim(widget.listingId);
       ref.invalidate(myClaimsProvider);
+      ref.invalidate(claimLimitsProvider);
       ref.invalidate(unreadNotificationsProvider);
       if (mounted) {
+        setState(() => _justSubmittedStatus = ClaimStatus.pending);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Claim submitted — pending approval')),
         );
-        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -81,14 +152,33 @@ class _FoodDetailScreenState extends ConsumerState<FoodDetailScreen> {
   Widget build(BuildContext context) {
     final listingAsync = ref.watch(listingDetailProvider(widget.listingId));
     final limitsAsync = ref.watch(claimLimitsProvider);
+    final myClaimsAsync = ref.watch(myClaimsProvider);
+    final myClaims = myClaimsAsync.valueOrNull ?? [];
+    var myClaim = findMyClaimForListing(myClaims, widget.listingId);
+    if (myClaim == null && _justSubmittedStatus != null) {
+      myClaim = ClaimModel(
+        id: '',
+        listingId: widget.listingId,
+        receiverId: '',
+        status: _justSubmittedStatus!,
+        createdAt: DateTime.now(),
+      );
+    }
 
     return listingAsync.when(
+      skipLoadingOnReload: true,
       loading: () => const Scaffold(body: Center(child: CircularProgressIndicator(color: green500))),
       error: (e, _) => Scaffold(
         appBar: AppBar(),
         body: ErrorState(message: e.toString(), onRetry: () => ref.invalidate(listingDetailProvider(widget.listingId))),
       ),
-      data: (listing) => Scaffold(
+      data: (listing) {
+        final action = claimActionForListing(listing: listing, myClaim: myClaim);
+        final canSubmit = action.canSubmit &&
+            (limitsAsync.valueOrNull?.canClaim ?? true) &&
+            !_claiming;
+
+        return Scaffold(
         backgroundColor: kBackground,
         body: Stack(
           children: [
@@ -217,6 +307,11 @@ class _FoodDetailScreenState extends ConsumerState<FoodDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    PickupAreaBanner(
+                      compact: true,
+                      onAreaChanged: () => ref.invalidate(listingDetailProvider(widget.listingId)),
+                    ),
+                    const SizedBox(height: 10),
                     limitsAsync.when(
                       data: (limits) => Padding(
                         padding: const EdgeInsets.only(bottom: 10),
@@ -226,11 +321,10 @@ class _FoodDetailScreenState extends ConsumerState<FoodDetailScreen> {
                       error: (_, __) => const SizedBox.shrink(),
                     ),
                     PrimaryButton(
-                      label: 'Request claim',
+                      label: action.label,
                       isLoading: _claiming,
-                      onPressed: listing.status.name == 'available' ? _claim : null,
-                      enabled: listing.status.name == 'available' &&
-                          (limitsAsync.valueOrNull?.canClaim ?? true),
+                      onPressed: canSubmit ? _claim : null,
+                      enabled: canSubmit,
                     ),
                   ],
                 ),
@@ -238,7 +332,8 @@ class _FoodDetailScreenState extends ConsumerState<FoodDetailScreen> {
             ),
           ],
         ),
-      ),
+      );
+      },
     );
   }
 }

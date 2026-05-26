@@ -13,12 +13,15 @@ class FoodCard extends StatelessWidget {
     this.onTap,
     this.onClaim,
     this.showClaimButton = true,
+    this.claimButtonLabel,
   });
 
   final ListingModel listing;
   final VoidCallback? onTap;
   final VoidCallback? onClaim;
   final bool showClaimButton;
+  /// When set, shows a disabled-style button (e.g. "Pending", "Claimed").
+  final String? claimButtonLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -115,12 +118,14 @@ class FoodCard extends StatelessWidget {
                         width: double.infinity,
                         height: 40,
                         child: FilledButton(
-                          onPressed: onClaim,
+                          onPressed: claimButtonLabel == null ? onClaim : null,
                           style: FilledButton.styleFrom(
                             backgroundColor: green500,
+                            disabledBackgroundColor: green100,
+                            disabledForegroundColor: green500,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: const Text('Claim food'),
+                          child: Text(claimButtonLabel ?? 'Claim food'),
                         ),
                       ),
                     ],

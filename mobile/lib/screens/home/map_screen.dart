@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../providers/geo_provider.dart';
 import '../../providers/listings_provider.dart';
 import '../../utils/format.dart';
+import '../../utils/pickup_area_copy.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/location_picker_sheet.dart';
@@ -70,7 +71,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                   ref.read(geoProvider.notifier).setSearchCenter(
                         lat: c.latitude,
                         lng: c.longitude,
-                        label: ref.read(geoProvider).label ?? 'Map area',
+                        label: ref.read(geoProvider).label ?? 'Area on map',
                         source: LocationSource.manual,
                       );
                   ref.invalidate(mapPinsProvider);
@@ -134,10 +135,23 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                             const Icon(Icons.place, color: green500, size: 20),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                geo.label ?? 'Choose area',
-                                style: const TextStyle(fontWeight: FontWeight.w600),
-                                overflow: TextOverflow.ellipsis,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    geo.displayTitle,
+                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'Drag map or tap to set pickup area',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                          color: kTextSecondary,
+                                          fontSize: 11,
+                                        ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
                             ),
                             const Icon(Icons.arrow_drop_down, color: kTextSecondary),

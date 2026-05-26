@@ -5,8 +5,11 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/geo_provider.dart';
+import '../../providers/claims_provider.dart';
 import '../../providers/listings_provider.dart';
+import '../../utils/claim_ui.dart';
 import '../../utils/greeting.dart';
+import '../../utils/pickup_area_copy.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/food_card.dart';
@@ -95,7 +98,7 @@ class _NearbyFeedScreenState extends ConsumerState<NearbyFeedScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${geo.label ?? 'Near you'} · ${count ?? '…'} listings nearby',
+                                '${count ?? '…'} listings near your pickup area',
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: Colors.white.withValues(alpha: 0.85),
@@ -122,16 +125,37 @@ class _NearbyFeedScreenState extends ConsumerState<NearbyFeedScreen> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                           child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(Icons.place_outlined, size: 20, color: Colors.white.withValues(alpha: 0.9)),
-                              const SizedBox(width: 8),
+                              Icon(Icons.place_outlined, size: 22, color: Colors.white.withValues(alpha: 0.95)),
+                              const SizedBox(width: 10),
                               Expanded(
-                                child: Text(
-                                  geo.label ?? 'Update location',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Pickup area · ${geo.displayTitle}',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      geo.source == LocationSource.gps
+                                          ? 'Using live GPS — tap to pick a junction or place you’ll be at'
+                                          : 'Showing food near this spot — tap to change',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        height: 1.3,
+                                        color: Colors.white.withValues(alpha: 0.82),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              Icon(Icons.refresh_rounded, size: 20, color: Colors.white.withValues(alpha: 0.9)),
+                              Icon(Icons.chevron_right, color: Colors.white.withValues(alpha: 0.9)),
                             ],
                           ),
                         ),
@@ -189,12 +213,16 @@ class _NearbyFeedScreenState extends ConsumerState<NearbyFeedScreen> {
                 ),
               ),
               data: (listings) {
+                final myClaims = ref.watch(myClaimsProvider).valueOrNull ?? [];
                 if (listings.isEmpty) {
-                  return const SliverFillRemaining(
+                  return SliverFillRemaining(
                     hasScrollBody: false,
                     child: EmptyState(
-                      title: 'No food nearby right now',
-                      body: 'Check back soon or expand your search radius.',
+                      title: 'No food near this pickup area',
+                      body: 'Try a larger radius, search another junction or area, '
+                          'or use current location if you moved.',
+                      actionLabel: 'Change pickup area',
+                      onAction: () => showLocationPickerSheet(context, ref),
                     ),
                   );
                 }
@@ -204,10 +232,15 @@ class _NearbyFeedScreenState extends ConsumerState<NearbyFeedScreen> {
                     delegate: SliverChildBuilderDelegate(
                       (context, i) {
                         final listing = listings[i];
+                        final myClaim = findMyClaimForListing(myClaims, listing.id);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: FoodCard(
                             listing: listing,
+                            claimButtonLabel: foodCardClaimLabel(
+                              listing: listing,
+                              myClaim: myClaim,
+                            ),
                             onTap: () => context.push('/receiver/food/${listing.id}'),
                             onClaim: () => context.push('/receiver/food/${listing.id}'),
                           ),

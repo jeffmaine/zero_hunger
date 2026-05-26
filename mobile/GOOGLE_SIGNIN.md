@@ -6,9 +6,11 @@ Google login needs **three** pieces aligned. If any is missing, you get a blank 
 
 1. Open [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **Credentials**.
 2. Configure **OAuth consent screen** (External is fine for testing; add your email as test user).
-3. Create **OAuth 2.0 Client ID → Web application**  
-   - Copy the **Client ID** (ends with `.apps.googleusercontent.com`).  
-   - This is your **Web client ID** — used on **both** backend and mobile.
+3. Create **OAuth 2.0 Client ID → Web application** (not Desktop / not “Installed app”)  
+   - Copy the **Client ID** and **Client secret** into `backend/.env`.  
+   - Use the same **Client ID** in Flutter (`kGoogleWebClientIdFallback` or `--dart-define=GOOGLE_SERVER_CLIENT_ID`).  
+   - If you download JSON, it should look like `"web": { "client_id": "...", "client_secret": "..." }`.  
+   - A file with `"installed": { ... }` only is the **wrong** client type for this app — do not use that ID on the backend or as `serverClientId`.
 
 4. Create **OAuth 2.0 Client ID → Android**  
    - Package name: `com.zerohunger.zero_hunger`  
@@ -69,10 +71,25 @@ Restart the app (full restart, not hot reload).
 
 | Error in app | Fix |
 |--------------|-----|
+| **ApiException: 10** (sign_in_failed) | Step 1 — create **Android** OAuth client with package + SHA-1 (Web client alone is not enough) |
 | Not set up on this build | Step 3 — Web client ID on mobile |
 | Server: not configured | Step 2 — `GOOGLE_CLIENT_ID` on API host |
 | No ID token / SHA-1 | Step 1 — Android OAuth client + SHA-1 |
 | Server rejected token | Web client ID must **match** on backend and mobile |
+
+### ApiException: 10 (most common on a new phone)
+
+Google shows this when the **Android** OAuth client is missing or the SHA-1 is wrong.
+
+1. [Credentials](https://console.cloud.google.com/apis/credentials) → **Create credentials** → **OAuth client ID** → **Android**
+2. Package name: `com.zerohunger.zero_hunger`
+3. SHA-1: run `./scripts/print_android_sha1.sh` from `mobile/` and paste the **SHA1** line
+4. Save, wait 1–2 minutes, uninstall the app from the phone, run `flutter run` again
+
+You must have **both** credential types in the same Google Cloud project:
+
+- **Web** client → backend `GOOGLE_CLIENT_ID` + mobile `serverClientId`
+- **Android** client → package + SHA-1 only (no secret in the app)
 
 ---
 
