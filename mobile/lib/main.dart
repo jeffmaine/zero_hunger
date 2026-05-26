@@ -9,6 +9,12 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   if (kDebugMode) {
     debugPrint('[ZeroHunger] API base: $apiBaseUrl');
+    if (!isGoogleSignInConfigured) {
+      debugPrint(
+        '[ZeroHunger] Google Sign-In: not configured — set kGoogleWebClientIdFallback or '
+        'GOOGLE_SERVER_CLIENT_ID (see mobile/GOOGLE_SIGNIN.md)',
+      );
+    }
   }
   runApp(const ProviderScope(child: ZeroHungerApp()));
 }

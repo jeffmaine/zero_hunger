@@ -6,6 +6,7 @@ import '../../core/theme.dart';
 import '../../models/enums.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/token_storage.dart';
 import '../../widgets/google_sign_in_button.dart';
 import '../../widgets/primary_button.dart';
 import 'widgets/auth_shell.dart';
@@ -23,6 +24,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _password = TextEditingController();
   bool _obscure = true;
   String? _error;
+  UserRole _role = UserRole.receiver;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRole();
+  }
+
+  Future<void> _loadRole() async {
+    final pending = await ref.read(tokenStorageProvider).pendingRole();
+    if (pending != null && mounted) {
+      setState(() => _role = UserRole.values.byName(pending));
+    }
+  }
 
   @override
   void dispose() {
@@ -34,7 +49,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _googleSignIn() async {
     setState(() => _error = null);
     try {
-      final user = await ref.read(authProvider.notifier).signInWithGoogle(role: UserRole.receiver);
+      final user = await ref.read(authProvider.notifier).signInWithGoogle(role: _role);
       if (!mounted || user == null) return;
       context.go(user.role == UserRole.donor ? '/donor' : '/receiver');
     } on ApiException catch (e) {

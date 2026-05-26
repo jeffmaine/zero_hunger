@@ -32,9 +32,16 @@ docker compose exec api alembic upgrade head
 5. Point mobile `API_BASE` to `http://YOUR_SERVER_IP:8000/api/v1`.
 6. Add HTTPS before production users (nginx/Caddy or AWS ALB).
 
-## 4. Mobile builds
+## 4. Mobile app (not on EC2)
 
-- Android: `flutter build apk --release`
-- iOS: Xcode archive (needs Apple dev account)
+The Flutter app is **not** deployed like the API. You build an **AAB/APK** and upload to **Google Play** (or TestFlight on iOS).
+
+**Full guide:** [mobile/DEPLOY.md](mobile/DEPLOY.md)
+
+| What | Value |
+|------|--------|
+| Live API (already up) | `http://3.251.66.229:8000/api/v1` |
+| Play Store file | `flutter build appbundle --release` → upload `.aab` |
+| “Live app link” for testers | Play Console → **Internal testing** opt-in URL |
 
 Do **not** commit `.env`, Firebase JSON keys, or `google-services.json`.

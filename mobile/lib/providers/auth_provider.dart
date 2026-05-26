@@ -64,7 +64,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return;
     }
     try {
-      final user = await _auth.fetchMe();
+      final user = await _auth.fetchMe(
+        timeout: const Duration(seconds: 8),
+      );
       state = state.copyWith(user: user, isBootstrapping: false, clearUser: user == null);
     } catch (_) {
       await _storage.clearTokens();

@@ -16,29 +16,44 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
+  bool _brandingDone = false;
+  bool _navigated = false;
+
   @override
   void initState() {
     super.initState();
-    _navigate();
+    Future<void>.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      setState(() => _brandingDone = true);
+      _tryNavigate();
+    });
   }
 
-  Future<void> _navigate() async {
-    await Future<void>.delayed(const Duration(milliseconds: 1800));
-    if (!mounted) return;
+  void _tryNavigate() {
+    if (_navigated || !_brandingDone) return;
     final auth = ref.read(authProvider);
+    if (auth.isBootstrapping) return;
+
+    _navigated = true;
     if (auth.isAuthenticated && auth.user != null) {
       final role = auth.user!.role;
       context.go(role == UserRole.donor ? '/donor' : '/receiver');
       return;
     }
-    final storage = ref.read(tokenStorageProvider);
-    final onboarded = await storage.hasOnboarded();
-    if (!mounted) return;
-    context.go(onboarded ? '/login' : '/onboarding');
+    ref.read(tokenStorageProvider).hasOnboarded().then((onboarded) {
+      if (!mounted || !_navigated) return;
+      context.go(onboarded ? '/login' : '/onboarding');
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (prev, next) {
+      if (prev?.isBootstrapping == true && !next.isBootstrapping) {
+        _tryNavigate();
+      }
+    });
+
     return Scaffold(
       body: Container(
         width: double.infinity,

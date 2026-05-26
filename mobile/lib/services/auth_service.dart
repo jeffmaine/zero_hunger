@@ -56,9 +56,15 @@ class AuthService {
     }
   }
 
-  Future<UserModel?> fetchMe() async {
+  Future<UserModel?> fetchMe({Duration? timeout}) async {
     try {
-      final res = await _api.dio.get('/auth/me');
+      final options = timeout != null
+          ? Options(sendTimeout: timeout, receiveTimeout: timeout)
+          : null;
+      final request = _api.dio.get('/auth/me', options: options);
+      final res = timeout != null
+          ? await request.timeout(timeout)
+          : await request;
       return UserModel.fromJson(res.data as Map<String, dynamic>);
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) return null;

@@ -30,3 +30,6 @@ mobile/android/app/google-services.json
 
 # IDE
 *.iml
+
+# Internal specs (local only)
+prompt/
