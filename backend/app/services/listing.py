@@ -7,7 +7,7 @@ from app.core.config import Config
 from app.core.enums import ListingCategory, ListingStatus, UserRole
 from app.cruds import listing as listing_crud
 from app.cruds import user as user_crud
-from app.exceptions.custom import BadRequestException, ForbiddenException, NotFoundException
+from app.exceptions.custom import ForbiddenException, NotFoundException
 from app.models.listing import FoodListing
 from app.models.user import User
 from app.schemas.listing import ListingCreate, ListingPublic, ListingUpdate
@@ -158,7 +158,7 @@ async def list_map_pins(
 
 async def list_mine(db: AsyncSession, donor: User) -> list[ListingPublic]:
     listings = await listing_crud.list_by_donor(db, donor.uuid)
-    return [listing_to_public(l) for l in listings]
+    return [listing_to_public(listing) for listing in listings]
 
 
 async def update_listing(

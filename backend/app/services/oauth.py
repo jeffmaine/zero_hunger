@@ -5,7 +5,7 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Config
-from app.core.enums import OneTimeTokenType, TokenType, UserRole
+from app.core.enums import OneTimeTokenType, UserRole
 from app.core.logging import get_logger
 from app.exceptions.custom import BadRequestException, UnauthorizedException
 from app.schemas.auth import GoogleMobileAuthRequest

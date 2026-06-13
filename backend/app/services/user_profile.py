@@ -14,7 +14,7 @@ from app.services import cloudinary
 
 async def count_meals_shared(db: AsyncSession, donor_uuid: UUID) -> int:
     listings = await listing_crud.list_by_donor(db, donor_uuid)
-    return sum(1 for l in listings if l.status == ListingStatus.COMPLETED.value)
+    return sum(1 for listing in listings if listing.status == ListingStatus.COMPLETED.value)
 
 
 def profile_from_user(user: User, meals_shared: int = 0) -> ProfilePublic:

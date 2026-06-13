@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.enums import ClaimStatus, ListingStatus, NotificationType
+from app.core.enums import ListingStatus, NotificationType
 from app.cruds import claim as claim_crud
 from app.cruds import listing as listing_crud
 from app.cruds import notification as notification_crud
@@ -101,12 +101,12 @@ async def get_donor_dashboard(
 
     listings = await listing_crud.list_by_donor(db, donor_uuid)
     active_statuses = {ListingStatus.AVAILABLE.value, ListingStatus.CLAIMED.value}
-    active_count = sum(1 for l in listings if l.status in active_statuses)
+    active_count = sum(1 for listing in listings if listing.status in active_statuses)
     pending_claims = await claim_crud.count_pending_for_donor(db, donor_uuid)
     unread_notifications = await notification_crud.count_unread(db, donor_uuid)
 
     recent_candidates = [
-        l for l in listings if l.status in active_statuses
+        listing for listing in listings if listing.status in active_statuses
     ]
     recent = [listing_to_public(listing, donor) for listing in recent_candidates[:3]]
     activity = await _build_nearby_activity(db, donor, lat, lng, radius_km)
